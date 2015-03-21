@@ -177,6 +177,7 @@
 
   crop.factory('cropAreaRectangle', ['cropArea', function(CropArea) {
     var CropAreaRectangle = function() {
+      console.log(arguments);
       CropArea.apply(this, arguments);
 
       this._resizeCtrlBaseRadius = 10;
@@ -267,9 +268,16 @@
       }
     };
 
+    CropAreaRectangle.prototype.yPositionWithRatio = function(mouseCurX, ratio, directionModifier) {
+      var xChange = mouseCurX - this._posResizeStartX;
+      return Math.round(Math.abs(this._posResizeStartY + directionModifier*(xChange/ratio)));
+    };
+
     CropAreaRectangle.prototype.processMouseMove=function(mouseCurX, mouseCurY) {
       var cursor='default';
       var res=false;
+      var ratio = this._aspectRatio;
+      var yPosition;
 
       this._resizeCtrlIsHover = -1;
       this._areaIsHover = false;
@@ -286,19 +294,23 @@
         var se = this.getSouthEastBound();
         switch(this._resizeCtrlIsDragging) {
           case 0: // Top Left
-            this.setSizeByCorners({x: mouseCurX, y: mouseCurY}, {x: se.x, y: se.y});
+            yPosition = ratio ? this.yPositionWithRatio(mouseCurX, ratio, 1) : mouseCurY;
+            this.setSizeByCorners({x: mouseCurX, y: yPosition}, {x: se.x, y: se.y});
             cursor = 'nwse-resize';
             break;
           case 1: // Top Right
-            this.setSizeByCorners({x: s.x, y: mouseCurY}, {x: mouseCurX, y: se.y});
+            yPosition = ratio ? this.yPositionWithRatio(mouseCurX, ratio, -1) : mouseCurY;
+            this.setSizeByCorners({x: s.x, y: yPosition}, {x: mouseCurX, y: se.y});
             cursor = 'nesw-resize';
             break;
           case 2: // Bottom Left
-            this.setSizeByCorners({x: mouseCurX, y: s.y}, {x: se.x, y: mouseCurY});
+            yPosition = ratio ? this.yPositionWithRatio(mouseCurX, ratio, -1) : mouseCurY;
+            this.setSizeByCorners({x: mouseCurX, y: s.y}, {x: se.x, y: yPosition});
             cursor = 'nesw-resize';
             break;
           case 3: // Bottom Right
-            this.setSizeByCorners({x: s.x, y: s.y}, {x: mouseCurX, y: mouseCurY});
+            yPosition = ratio ? this.yPositionWithRatio(mouseCurX, ratio, 1) : mouseCurY;
+            this.setSizeByCorners({x: s.x, y: s.y}, {x: mouseCurX, y: yPosition});
             cursor = 'nwse-resize';
             break;
         }
@@ -549,6 +561,10 @@
     CropArea.prototype.setMinSize = function (size) {
       this._minSize = this._processSize(size);
       this.setSize(this._minSize);
+    };
+
+    CropArea.prototype.setAspectRatio = function(ratio) {
+      this._aspectRatio = ratio;
     };
 
     // return a type string
@@ -1058,6 +1074,18 @@
         }
       };
 
+      this.setAspectRatio=function(ratio) {
+        if (angular.isUndefined(ratio))
+        {
+          return;
+        }
+        ratio=parseFloat(ratio);
+        if(!isNaN(ratio)) {
+          theArea.setAspectRatio(ratio);
+          drawScene();
+        }
+      };
+
       this.getResultImageSize=function() {
         if (resImgSize == "selection")
         {
@@ -1194,6 +1222,7 @@
         image: '=',
         resultImage: '=',
         resultImageData: '=',
+        aspectRatio: '=',
 
         changeOnFly: '=',
         areaCoords: '=',
@@ -1291,6 +1320,10 @@
         });
         scope.$watch('resultImageSize',function(){
           cropHost.setResultImageSize(scope.resultImageSize);
+          updateResultImage(scope);
+        });
+        scope.$watch('aspectRatio',function(){
+          cropHost.setAspectRatio(scope.aspectRatio);
           updateResultImage(scope);
         });
 
